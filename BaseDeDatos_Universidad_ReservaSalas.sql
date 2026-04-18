@@ -68,9 +68,11 @@ CREATE TABLE Reservas
             id_reserva INT NOT NULL AUTO_INCREMENT,
             fecha DATE NOT NULL, 
             turno ENUM('Mañana', 'Tarde') NOT NULL,
-            dni_estudiante CHAR(9) NOT NULL,                    -- Clave foránea hacia la tabla Estudiantes
-            id_sala VARCHAR(10) NOT NULL,                       -- Clave foránea hacia la tabla Salas
-            asistio BOOLEAN,                                    -- Campo lógico (booleano)
+            -- Clave foránea hacia la tabla Estudiantes
+            dni_estudiante CHAR(9) NOT NULL,  
+            -- Clave foránea hacia la tabla Salas                 
+            id_sala VARCHAR(10) NOT NULL,                       
+            asistio BOOLEAN,                                    
             estado ENUM('confirmada' , 'cancelada') NOT NULL,
             PRIMARY KEY(id_reserva),
             FOREIGN KEY(dni_estudiante) REFERENCES Estudiantes(dni) ON DELETE RESTRICT,
@@ -207,7 +209,8 @@ INSERT INTO Incidencias (id_reserva, fecha_registro, tipo_incidencia, estado_res
 
 -- Por completar por el alumno o alumna
 
-SELECT DISTINCT e.dni, e.apellidos, e.nombre                                    -- Para eliminación de duplicados, se inserta la palabra clave DISTINCT, lo contrario a ALL
+-- Para eliminación de duplicados, se inserta la palabra clave DISTINCT, lo contrario a ALL
+SELECT DISTINCT e.dni, e.apellidos, e.nombre                                    
 FROM Estudiantes e INNER JOIN Reservas r ON e.dni = r.dni_estudiante
 WHERE r.estado = 'cancelada'
 ORDER BY e.apellidos ASC;
@@ -258,11 +261,14 @@ ORDER BY r.fecha ASC;
 
 -- Por completar por el alumno o alumna
 
-SELECT r.id_sala, COUNT(*) AS total_canceladas                              -- Muestra el id de la sala y un conteo de las reservas canceladas de esa sala
+-- Muestra el id de la sala y un conteo de las reservas canceladas de esa sala
+SELECT r.id_sala, COUNT(*) AS total_canceladas                              
 FROM Reservas r
 WHERE r.estado = 'cancelada'
-GROUP BY r.id_sala                                                          -- Agrupamos todas las salas por id (que hayan tenido al menos una reserva cancelada)
-ORDER BY total_canceladas DESC, r.id_sala ASC;                              -- Ordena primero por el total de canceladas, y en caso de empate ordena por el id de la sala 
+-- Agrupamos todas las salas por id (que hayan tenido al menos una reserva cancelada)
+GROUP BY r.id_sala                                                          
+-- Ordena primero por el total de canceladas, y en caso de empate ordena por el id de la sala
+ORDER BY total_canceladas DESC, r.id_sala ASC;                               
 
 ################################################################################################# 
 # Apartado 9: CONSULTA 
@@ -278,12 +284,15 @@ ORDER BY total_canceladas DESC, r.id_sala ASC;                              -- O
 
 -- Por completar por el alumno o alumna
 
-SELECT e.dni, e.apellidos, COUNT(r.id_reserva) AS reservas_pendientes       -- COUNT nos cuenta el número de reservas pendientes de cada estudiante
+-- COUNT nos cuenta el número de reservas pendientes de cada estudiante
+SELECT e.dni, e.apellidos, COUNT(r.id_reserva) AS reservas_pendientes       
 FROM Estudiantes e INNER JOIN Reservas r ON e.dni = r.dni_estudiante
+-- confirmadas, cuya asistencia esté pendiente de comprobación
 WHERE r.estado = 'confirmada' AND r.asistio IS NULL
 GROUP BY e.dni, e.apellidos
-HAVING COUNT(r.id_reserva) >= 2                                             -- Volumen considerable de reservas se condisera como dos o más reservas
-ORDER BY reservas_pendientes DESC, e.apellidos ASC;                         -- confirmadas, cuya asistencia esté pendiente de comprobación
+-- Volumen considerable de reservas se condisera como dos o más reservas
+HAVING COUNT(r.id_reserva) >= 2                                             
+ORDER BY reservas_pendientes DESC, e.apellidos ASC;                         
 
 ################################################################################################# 
 # Apartado 10: CONSULTA 
@@ -298,12 +307,15 @@ ORDER BY reservas_pendientes DESC, e.apellidos ASC;                         -- c
 
 -- Por completar por el alumno o alumna
 
-SELECT r.fecha, r.turno, SUM(s.capacidad) AS total_plazas_reservadas        -- Suma las capacidades de las salas de las reservas en esa fecha y turno. Almacena dentro de total_plazas_reservadas
-FROM Reservas r INNER JOIN Salas s ON r.id_sala = s.id_sala
-WHERE r.estado = 'confimada'                                                -- Se consideran solo las reservas confirmadas
-GROUP BY r.fecha, r.turno                                                   -- Se agrupa por misma fecha y turno
+-- Suma las capacidades de las salas de las reservas en esa fecha y turno. Almacena dentro de total_plazas_reservadas
+SELECT r.fecha, r.turno, SUM(s.capacidad) AS total_plazas_reservadas 
+FROM Reservas r INNER JOIN Salas s ON r.id_sala = s.id_sala       
+-- Se consideran solo las reservas confirmadas
+WHERE r.estado = 'confirmada'  
+-- Se agrupa por misma fecha y turno                                              
+GROUP BY r.fecha, r.turno                                                   
 HAVING SUM(s.capacidad) > 15
-ORDER BY r.fecha ASC, CASE WHEN r.turno = 'Mañana' THEN 1 ELSE 2 END ASC;
+ORDER BY r.fecha ASC, CASE WHEN r.turno = 'Tarde' THEN 2 ELSE 1 END ASC;
     
 ################################################################################################# 
 # Apartado 11: CONSULTA 
@@ -319,8 +331,19 @@ ORDER BY r.fecha ASC, CASE WHEN r.turno = 'Mañana' THEN 1 ELSE 2 END ASC;
 
 -- Por completar por el alumno o alumna
 
-
-
+SELECT e.dni, e.apellidos, e.nombre
+FROM Estudiantes e 
+WHERE e.dni NOT IN (                                                         
+    SELECT r.dni_estudiante
+    FROM Reservas r
+    -- El DNI del estudiante no esta en la selección de DNIs de las reservas en donde el id_sala coincide con el id_sala de la sala en la ubicación 'Edificio Anexo'
+    WHERE r.id_sala IN (
+        SELECT s.id_sala 
+        FROM Salas s
+        WHERE s.ubicacion = 'Edificio Anexo'
+    )
+)
+ORDER BY e.apellidos ASC;
 
 ################################################################################################# 
 # Apartado 12: CONSULTA 
@@ -336,7 +359,16 @@ ORDER BY r.fecha ASC, CASE WHEN r.turno = 'Mañana' THEN 1 ELSE 2 END ASC;
 
 -- Por completar por el alumno o alumna
 
-
+-- Genera una lista con el conteo de las reservas de cada sala
+SELECT r.id_sala, COUNT(*) AS total_reservas                                  
+FROM Reservas r 
+GROUP BY r.id_sala
+-- Se queda con la/s sala/s donde el conteo es mayor o igual que todo el resto
+HAVING COUNT(*) >= ALL (                                                      
+    SELECT COUNT(*)                                                           
+    FROM Reservas
+    GROUP BY id_sala
+);
 
 ################################################################################################# 
 # Apartado 13: CONSULTA 
@@ -350,10 +382,20 @@ ORDER BY r.fecha ASC, CASE WHEN r.turno = 'Mañana' THEN 1 ELSE 2 END ASC;
 # Salida: (fecha_registro, descripcion)
 #################################################################################################
 
-
 -- Por completar por el alumno o alumna
 
-
+SELECT i.fecha_registro, i.descripcion
+FROM Incidencias i
+WHERE i.id_reserva IN (                                                     
+    SELECT r.id_reserva
+    FROM Reservas r
+    -- Escogemos la incidencias que están en las reservas donde el dni del estudiante está relacionado al grado de 'Física'
+    WHERE r.dni_estudiante IN (
+        SELECT e.dni
+        FROM Estudiantes e 
+        WHERE e.grado = 'Física'
+    )
+);
 
 ################################################################################################# 
 # Apartado 14: FUNCION 
@@ -376,8 +418,26 @@ SET GLOBAL log_bin_trust_function_creators = 1;
 
 -- Por completar por el alumno o alumna
 
+-- Eliminamos la función si ya estuviese creado antes
+DROP FUNCTION IF EXISTS reservas_pendientes;
 
+-- Inicio del delimitador y la función
+DELIMITER //													
+CREATE FUNCTION reservas_pendientes(p_dni_estudiante CHAR(9)) RETURNS INT
+BEGIN
+    DECLARE total_reservasPendientes INT;
 
+    -- Cuenta todas las reservas confirmadas y pendientes del estudiante pasado en el parámetro de la función
+    SELECT COUNT(*) INTO total_reservasPendientes							
+    FROM Reservas
+    WHERE dni_estudiante = p_dni_estudiante
+      AND estado = 'confirmada'
+      AND asistio IS NULL;
+
+    RETURN total_reservasPendientes;
+END //
+
+DELIMITER ;
 
 -- ==============================================================================
 -- Código para probar la función reservas_pendientes()
@@ -407,6 +467,45 @@ SELECT reservas_pendientes('11111111A') AS pendientes_laura;
 
 -- Por completar por el alumno o alumna
 
+-- Eliminamos el TRIGGER si ya estuviese creado antes
+DROP FUNCTION IF EXISTS plazas_libres;
+
+-- Inicio del delimitador y la función
+DELIMITER //
+CREATE FUNCTION plazas_libres(p_id_sala VARCHAR(10), p_fecha DATE, p_turno ENUM('Mañana', 'Tarde')) RETURNS INT
+BEGIN
+
+    -- Variables tipo INT que representa la capacidad total, capacidad reservada y la capacidad libre, respectivamente
+	DECLARE capacidadTotalSala INT;
+    DECLARE reservasConfirmadasSala INT;
+    DECLARE plazasLibresSala INT;
+
+    -- Extraemos la capacidad total de la sala del parámetro a la variable local INT capacidadTotalSala
+    SELECT capacidad INTO capacidadTotalSala
+    FROM Salas
+    WHERE id_sala = p_id_sala;
+
+    -- Contraremos solo las reservas confirmadas en esa sala, fecha, turno y estado. Las canceladas no ocupan plaza 
+    SELECT COUNT(*) INTO reservasConfirmadasSala
+    FROM Reservas   
+    WHERE id_sala = p_id_sala
+        AND fecha = p_fecha
+        AND turno = p_turno
+        AND estado = 'confirmada';
+    
+    -- Calculamos las plazas libres que quedan en la sala en esa fecha y turno... Considerando solo las reservas confirmadas
+	-- IFNULL nos dice que si las variables no son nulas, se usa su valor. Si fuesen nulas, se usa 0 
+    SET plazasLibresSala = capacidadTotalSala - reservasConfirmadasSala;
+
+    -- Esta parte es para tratar posible errores, como resultados negativos...
+    IF plazasLibresSala < 0 THEN 
+        SET plazasLibresSala = 0;
+	END IF;
+
+    RETURN plazasLibresSala;
+END //
+
+DELIMITER ;
 
 
 -- ==============================================================================
@@ -452,8 +551,19 @@ SELECT plazas_libres('A1', '2026-04-20', 'Mañana') AS libres_A1;
 
 -- Por completar por el alumno o alumna
 
+-- Eliminamos el trigger si ya estuviese creado antes
+DROP TRIGGER IF EXISTS trg_formato_email;
 
+-- Inicio del delimitador y el trigger
+DELIMITER //
+CREATE TRIGGER trg_formato_email 
+BEFORE INSERT ON Estudiantes
+FOR EACH ROW 
+BEGIN
+		SET NEW.email = LOWER(NEW.email);
+END //
 
+DELIMITER ;
 
 -- ==============================================================================
 -- Código para probar el disparador trg_formato_email
@@ -498,8 +608,47 @@ DELETE FROM Estudiantes WHERE dni = '99988877Z';
 
 -- Por completar por el alumno o alumna
 
+-- Eliminamos el trigger si ya estuviese creado antes
+DROP TRIGGER IF EXISTS trg_validar_nueva_reserva;
 
+DELIMITER //
+CREATE TRIGGER trg_validar_nueva_reserva
+BEFORE INSERT ON Reservas
+FOR EACH ROW 
+BEGIN  
+    DECLARE plazasDisponibles INT;
+    DECLARE reservasPendientesEstudiante INT;
 
+    -- REGLA 1: Comprueba si la fecha de la reserva no supera los 2 meses desde la fecha actual
+    IF NEW.fecha > DATE_ADD(DATE('2026-04-13'), INTERVAL 2 MONTH) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Error: No se puede reservar con más de dos meses de antelacion.';
+    END IF;
+
+    -- REGLA 2 Y 3
+    IF NEW.estado = 'confirmada' THEN
+
+        -- REGLA 2: Comprobamos si quedan plazas disponibles en la sala solicitada con la funcion plazas_libres()
+        SET plazasDisponibles = plazas_libres(NEW.id_sala, NEW.fecha, NEW.turno);
+
+        IF plazasDisponibles <= 0 THEN
+            -- Al detectar regla incumplida, ejecutamos SIGNAL SQLSTATE '45000', por lo cual MySQL detiene la sentencia INSERT, no se guarda la fila (row)
+            -- El código 45000 nos indica un error lanzado por usuario, es una validación definida por nosotros... 
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Error: La sala ha superado su capacidad maxima.';
+        END IF;
+
+        -- REGLA 3: Comprobamos que el estudiante no tenga 3 o mas reservas confirmadas pendientes
+        SET reservasPendientesEstudiante = reservas_pendientes(NEW.dni_estudiante);
+
+        IF reservasPendientesEstudiante >= 3 THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Error: El estudiante ya ha alcanzado el limite de reservas pendientes.';
+        END IF;
+    END IF;
+END //
+
+DELIMITER ;
 
 -- ==============================================================================
 -- Código para probar el disparador trg_validar_nueva_reserva
@@ -536,8 +685,12 @@ VALUES ('2026-04-29', 'Mañana', '55555555E', 'C3', NULL, 'confirmada');
 
 -- Por completar por el alumno o alumna
 
+-- Eliminamos la vista si ya estuviese creada antes
+DROP VIEW IF EXISTS Vista_Directorio_Estudiantes;
 
-
+CREATE VIEW Vista_Directorio_Estudiantes AS
+    SELECT dni, CONCAT(apellidos, ', ', nombre) AS nombre_completo, email
+    FROM Estudiantes;
 
 -- ==============================================================================
 -- Código para probar la vista Vista_Directorio_Estudiantes
@@ -560,8 +713,12 @@ SELECT * FROM Vista_Directorio_Estudiantes ORDER BY nombre_completo;
 
 -- Por completar por el alumno o alumna
 
+-- Eliminamos la vista si ya estuviese creada antes
+DROP VIEW IF EXISTS Vista_Reservas_Detalladas;
 
-
+CREATE VIEW Vista_Reservas_Detalladas AS
+    SELECT r.fecha, r.turno, e.dni, e.apellidos, e.nombre, r.id_sala, r.estado
+    FROM Reservas r INNER JOIN Estudiantes e ON e.dni = r.dni_estudiante;
 
 -- ==============================================================================
 -- Código para probar la vista Vista_Reservas_Detalladas
@@ -586,8 +743,16 @@ SELECT * FROM Vista_Reservas_Detalladas ORDER BY fecha, id_sala;
 
 -- Por completar por el alumno o alumna
 
+-- Eliminamos la vista si ya estuviese creada antes
+DROP VIEW IF EXISTS Vista_Incidencias_Pendientes;
 
-
+CREATE VIEW Vista_Incidencias_Pendientes AS
+    SELECT i.id_incidencia, i.fecha_registro, s.id_sala, 
+            s.ubicacion, i.tipo_incidencia, i.estado_resolucion, i.descripcion
+    FROM Incidencias i INNER JOIN Reservas r ON r.id_reserva = i.id_reserva
+                       INNER JOIN Salas s ON s.id_sala = r.id_sala
+    -- Solo nos muestra solo incidencia pendientes de atención, no resueltas
+    WHERE i.estado_resolucion <> 'Resuelta';
 
 
 -- ==============================================================================
