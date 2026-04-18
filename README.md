@@ -1,0 +1,1 @@
+Esta programa simula una Base de Datos, la cual contiene información sobre el sistema de reserva de salas en una universidad. El objetivo de este trabajo es entender la creación de estructuras, funciones, triggers, consultad  y vistas básica en una base de datos.
